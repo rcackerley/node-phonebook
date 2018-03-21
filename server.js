@@ -1,87 +1,84 @@
-var http = require('http');
+let http = require('http');
 
-var phonebook = [{
+let phonebook = [{
   "name": "robby",
   "number": "7062027841",
   "email": "rcackerley@me.com",
   "id": 0
 }];
 
-var lastID = 0;
+let lastID = 0;
 
-var getRequestedEntry = function(itemId, request) {
-  return phonebook.find(function(element){
+let getRequestedEntry = (itemId, request) => {
+  return phonebook.find((element) => {
     return element.id.toString() === itemId;
   })
 }
 
-var updateEntry = function(newContentForContact, requestedEntry) {
-  for (var key in requestedEntry) {
-    for (var receivedKey in newContentForContact) {
+let updateEntry = (newContentForContact, requestedEntry) => {
+  for (let key in requestedEntry) {
+    for (let receivedKey in newContentForContact) {
       if (key === receivedKey) {
-
-        requestedEntry.key = newContentForContact.receivedKey;
-        console.log(requestedEntry.key)
+        requestedEntry[key] = newContentForContact[receivedKey];
       }
     }
   }
 }
-var matches = function(request, method, path) {
+let matches = (request, method, path) => {
   return request.method === method &&
          request.url.startsWith(path);
 }
-var addNewContact = function(contact) {
+let addNewContact = (contact) => {
   contact.id = ++lastID;
   phonebook.push(contact);
 }
 
-var deleteContact = function(request, response) {
-  var requestedEntry = getRequestedEntry(itemId, request);
-  var index = phonebook.indexOf(contact);
+let deleteContact = (request, response) => {
+  let requestedEntry = getRequestedEntry(itemId, request);
+  let index = phonebook.indexOf(contact);
   phonebook.splice(index, 1);
   response.end('item deleted');
 }
 
-var getContact = function(request, response) {
-  var url = request.url.toString();
-  var itemId = url.slice(10);
-  var requestedEntry = getRequestedEntry(itemId, request)
+let getContact = (request, response) => {
+  let url = request.url.toString();
+  let itemId = url.slice(10);
+  let requestedEntry = getRequestedEntry(itemId, request)
   response.end(JSON.stringify(requestedEntry));
 }
 
-var getContacts = function(request, response) {
+let getContacts = (request, response) => {
   response.end(JSON.stringify(phonebook));
 }
 
-var postContacts = function(request, response) {
-  var body = '';
-  request.on('data', function(chunk) {
+let postContacts = (request, response) => {
+  let body = '';
+  request.on('data', (chunk) => {
     body += chunk.toString();
   });
-  request.on('end', function() {
-    var contact = JSON.parse(body);
+  request.on('end', () => {
+    let contact = JSON.parse(body);
     addNewContact(contact);
     response.end('Got it!')
   });
 }
 
-var putContact = function(request, response) {
-console.log('here')
-  var body = '';
-  request.on('data', function(chunk){
+let putContact = (request, response) => {
+  let body = '';
+  request.on('data', (chunk) => {
     body += chunk.toString();
   });
-  request.on('end', function() {
-    var newContentForContact = JSON.parse(body);
-    var url = request.url.toString();
-    var itemId = url.slice(10);
-    var requestedEntry = getRequestedEntry(itemId, request);
+  request.on('end', () => {
+    let newContentForContact = JSON.parse(body);
+    let url = request.url.toString();
+    let itemId = url.slice(10);
+    let requestedEntry = getRequestedEntry(itemId, request);
     updateEntry(newContentForContact, requestedEntry);
   })
   response.end('Got it!');
 }
-
-var routes = [
+// console.log(putContact)
+let routes = [
   {
     method: 'GET',
     path: '/contacts/',
@@ -109,10 +106,9 @@ var routes = [
   }
 ];
 
+let server = http.createServer((request, response) => {
 
-var server = http.createServer(function(request, response) {
-
-  var route = routes.find(function(route) {
+  let route = routes.find((route) => {
     return matches(request, route.method, route.path)
   });
   route.handler(request, response);
