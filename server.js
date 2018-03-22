@@ -110,16 +110,19 @@ let routes = [
 ];
 
 let server = http.createServer((request, response) => {
+  let invalid = true;
   for (let route of routes) {
     var matched = matches(request, route.method, route.path)
     if (matched) {
       route.handler(request, response, matched);
+      invalid = false;
     }
   }
-  // let route = routes.find((route) => {
-  //   return matches(request, route.method, route.path)
-  // });
-  // route.handler(request, response, request.url);
+  console.log(invalid);
+  if (invalid) {
+    response.statusCode = 404;
+    response.end('404')
+  }
 
 });
 
