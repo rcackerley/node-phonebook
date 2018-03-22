@@ -26,7 +26,7 @@ let updateEntry = (newContentForContact, requestedEntry) => {
 }
 let matches = (request, method, path) => {
   return request.method === method &&
-         request.url.startsWith(path);
+         path.test(request.url);
 }
 let addNewContact = (contact) => {
   contact.id = ++lastID;
@@ -81,27 +81,27 @@ let putContact = (request, response) => {
 let routes = [
   {
     method: 'GET',
-    path: '/contacts/',
+    path: /^\/contacts\/[0-9]+/,
     handler: getContact
   },
   {
     method: 'GET',
-    path: '/contacts',
+    path: /^\/contacts\/?$/,
     handler: getContacts
   },
   {
     method: 'POST',
-    path: '/contacts',
+    path: /^\/contacts\/?$/,
     handler: postContacts
   },
   {
     method: 'DELETE',
-    path: '/contacts/',
+    path: /^\/contacts\/[0-9]+/,
     handler: deleteContact
   },
   {
     method: 'PUT',
-    path: '/contacts/',
+    path: /^\/contacts\/[0-9]+/,
     handler: putContact
   }
 ];
