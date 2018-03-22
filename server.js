@@ -25,8 +25,12 @@ let updateEntry = (newContentForContact, requestedEntry) => {
   }
 }
 let matches = (request, method, path) => {
-  return request.method === method &&
-         path.test(request.url);
+  var match = path.exec(request.url);
+  let matchArray = [];
+  if (match != null) {
+    matchArray = match.slice(1);
+  }
+  return request.method === method && matchArray;
 }
 let addNewContact = (contact) => {
   contact.id = ++lastID;
@@ -40,10 +44,9 @@ let deleteContact = (request, response) => {
   response.end('item deleted');
 }
 
-let getContact = (request, response) => {
-  let url = request.url.toString();
-  let itemId = url.slice(10);
-  let requestedEntry = getRequestedEntry(itemId, request)
+let getContact = (request, response, id) => {
+  let itemId = id[0];
+  let requestedEntry = getRequestedEntry(itemId, request);
   response.end(JSON.stringify(requestedEntry));
 }
 
@@ -63,15 +66,15 @@ let postContacts = (request, response) => {
   });
 }
 
-let putContact = (request, response) => {
+let putContact = (request, response, id) => {
+  console.log(id);
   let body = '';
   request.on('data', (chunk) => {
     body += chunk.toString();
   });
   request.on('end', () => {
     let newContentForContact = JSON.parse(body);
-    let url = request.url.toString();
-    let itemId = url.slice(10);
+    let itemId = id[0];
     let requestedEntry = getRequestedEntry(itemId, request);
     updateEntry(newContentForContact, requestedEntry);
   })
@@ -81,7 +84,7 @@ let putContact = (request, response) => {
 let routes = [
   {
     method: 'GET',
-    path: /^\/contacts\/[0-9]+/,
+    path: /^\/contacts\/([0-9]+)/,
     handler: getContact
   },
   {
@@ -96,22 +99,30 @@ let routes = [
   },
   {
     method: 'DELETE',
-    path: /^\/contacts\/[0-9]+/,
+    path: /^\/contacts\/([0-9]+)/,
     handler: deleteContact
   },
   {
     method: 'PUT',
-    path: /^\/contacts\/[0-9]+/,
+    path: /^\/contacts\/([0-9]+)/,
     handler: putContact
   }
 ];
 
 let server = http.createServer((request, response) => {
-
-  let route = routes.find((route) => {
-    return matches(request, route.method, route.path)
-  });
-  route.handler(request, response);
+  let invalid = true;
+  for (let route of routes) {
+    var matched = matches(request, route.method, route.path)
+    if (matched) {
+      route.handler(request, response, matched);
+      invalid = false;
+    }
+  }
+  console.log(invalid);
+  if (invalid) {
+    response.statusCode = 404;
+    response.end('404')
+  }
 
 });
 
