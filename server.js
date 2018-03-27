@@ -1,8 +1,9 @@
 let http = require('http');
+let fs = require('fs');
 
-let phonebook = [{
+let contacts = [{
   "name": "robby",
-  "number": "7062027841",
+  // "number": "7062027841",
   "email": "rcackerley@me.com",
   "id": 0
 }];
@@ -10,7 +11,7 @@ let phonebook = [{
 let lastID = 0;
 
 let getRequestedEntry = (itemId, request) => {
-  return phonebook.find((element) => {
+  return contacts.find((element) => {
     return element.id.toString() === itemId;
   })
 }
@@ -26,7 +27,7 @@ let updateEntry = (newContentForContact, requestedEntry) => {
 }
 let matches = (request, method, path) => {
   var match = path.exec(request.url);
-  let matchArray = [];
+  let matchArray = null;
   if (match != null) {
     matchArray = match.slice(1);
   }
@@ -34,13 +35,13 @@ let matches = (request, method, path) => {
 }
 let addNewContact = (contact) => {
   contact.id = ++lastID;
-  phonebook.push(contact);
+  contacts.push(contact);
 }
 
 let deleteContact = (request, response) => {
   let requestedEntry = getRequestedEntry(itemId, request);
-  let index = phonebook.indexOf(contact);
-  phonebook.splice(index, 1);
+  let index = contacts.indexOf(contact);
+  contacts.splice(index, 1);
   response.end('item deleted');
 }
 
@@ -51,7 +52,7 @@ let getContact = (request, response, id) => {
 }
 
 let getContacts = (request, response) => {
-  response.end(JSON.stringify(phonebook));
+  response.end(JSON.stringify(contacts));
 }
 
 let postContacts = (request, response) => {
@@ -80,7 +81,20 @@ let putContact = (request, response, id) => {
   })
   response.end('Got it!');
 }
-// console.log(putContact)
+let renderFile = (request, response) => {
+  var fileName = request.url.slice(1);
+  // console.log(fileName);
+  fs.readFile(fileName, 'utf-8', (err, data) => {
+    if (err) {
+        data = err;
+    }
+    // console.log(data);
+    // response.setHeader('Content-Type', 'text/html');
+    console.log(typeof data);
+    response.end(data);
+  })
+}
+
 let routes = [
   {
     method: 'GET',
@@ -106,6 +120,11 @@ let routes = [
     method: 'PUT',
     path: /^\/contacts\/([0-9]+)/,
     handler: putContact
+  },
+  {
+    method: 'GET',
+    path: /^\/[0-9A-Za-z]+/,
+    handler: renderFile
   }
 ];
 
@@ -116,6 +135,7 @@ let server = http.createServer((request, response) => {
     if (matched) {
       route.handler(request, response, matched);
       invalid = false;
+      break;
     }
   }
   console.log(invalid);
