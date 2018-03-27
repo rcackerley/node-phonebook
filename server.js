@@ -1,30 +1,24 @@
 let http = require('http');
 let fs = require('fs');
+let db = require('./db.js');
 
 let contacts = [{
   "name": "robby",
   // "number": "7062027841",
   "email": "rcackerley@me.com",
-  "id": 0
+  "id": 1
 }];
 
-let lastID = 0;
+let lastID = 1;
 
 let getRequestedEntry = (itemId, request) => {
-  return contacts.find((element) => {
-    return element.id.toString() === itemId;
-  })
+  return db.query(`SELECT * from contacts where id = ${itemId}`);
 }
 
-let updateEntry = (newContentForContact, requestedEntry) => {
-  for (let key in requestedEntry) {
-    for (let receivedKey in newContentForContact) {
-      if (key === receivedKey) {
-        requestedEntry[key] = newContentForContact[receivedKey];
-      }
-    }
+let updateEntry = (newContentForContact, itemId, key) => {
+  return db.query(`UPDATE contacts set ${key} = '${newContentForContact[key]}' where id = ${itemId}; `)
   }
-}
+
 let matches = (request, method, path) => {
   var match = path.exec(request.url);
   let matchArray = null;
@@ -34,26 +28,35 @@ let matches = (request, method, path) => {
   return request.method === method && matchArray;
 }
 let addNewContact = (contact) => {
-  contact.id = ++lastID;
-  contacts.push(contact);
+  console.log(contact.name);
+  return db.query(`INSERT INTO contacts(name, email) VALUES ('${contact.name}','${contact.email}');`);
+
 }
 
-let deleteContact = (request, response) => {
-  let requestedEntry = getRequestedEntry(itemId, request);
-  let index = contacts.indexOf(contact);
-  contacts.splice(index, 1);
-  response.end('item deleted');
+let deleteContact = (request, response, id) => {
+  let itemId = id[0];
+  var deleteEntryPromise = db.query(`DELETE from contacts where id = ${itemId}`);
+  deleteEntryPromise.then(results => {
+    response.end('item deleted');
+  })
 }
 
 let getContact = (request, response, id) => {
   let itemId = id[0];
   let requestedEntry = getRequestedEntry(itemId, request);
-  response.end(JSON.stringify(requestedEntry));
+  requestedEntry.then(results => {
+    console.log(results[0]);
+    response.end(JSON.stringify(results[0]));
+
+  })
 }
 
 let getContacts = (request, response) => {
-  response.end(JSON.stringify(contacts));
-}
+  var getContactsPromise = db.query('SELECT * from contacts;');
+  getContactsPromise.then(results => {
+    response.end(JSON.stringify(results));
+  })
+};
 
 let postContacts = (request, response) => {
   let body = '';
@@ -62,8 +65,9 @@ let postContacts = (request, response) => {
   });
   request.on('end', () => {
     let contact = JSON.parse(body);
-    addNewContact(contact);
-    response.end('Got it!')
+    var newContactPromise = addNewContact(contact);
+    newContactPromise.then(results => {response.end('Got it!')})
+    .catch(results => {console.log(results)});
   });
 }
 
@@ -76,10 +80,11 @@ let putContact = (request, response, id) => {
   request.on('end', () => {
     let newContentForContact = JSON.parse(body);
     let itemId = id[0];
-    let requestedEntry = getRequestedEntry(itemId, request);
-    updateEntry(newContentForContact, requestedEntry);
-  })
-  response.end('Got it!');
+    for (let key in newContentForContact) {
+      let editContactPromise = updateEntry(newContentForContact, itemId, key);
+      editContactPromise.then(results => {response.end('Got it!')});
+    }
+  });
 }
 let renderFile = (request, response) => {
   var fileName = request.url.slice(1);
@@ -88,8 +93,6 @@ let renderFile = (request, response) => {
     if (err) {
         data = err;
     }
-    // console.log(data);
-    // response.setHeader('Content-Type', 'text/html');
     console.log(typeof data);
     response.end(data);
   })
@@ -138,7 +141,7 @@ let server = http.createServer((request, response) => {
       break;
     }
   }
-  console.log(invalid);
+  // console.log(invalid);
   if (invalid) {
     response.statusCode = 404;
     response.end('404')
