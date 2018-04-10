@@ -1,6 +1,8 @@
-let http = require('http');
 let fs = require('fs');
 let db = require('./db.js');
+let express = require('express')
+let app = express()
+let bodyParser = require('body-parser');
 
 let contacts = [{
   "name": "robby",
@@ -19,34 +21,27 @@ let updateEntry = (newContentForContact, itemId, key) => {
   return db.query(`UPDATE contacts set ${key} = '${newContentForContact[key]}' where id = ${itemId}; `)
   }
 
-let matches = (request, method, path) => {
-  var match = path.exec(request.url);
-  let matchArray = null;
-  if (match != null) {
-    matchArray = match.slice(1);
-  }
-  return request.method === method && matchArray;
-}
 let addNewContact = (contact) => {
   console.log(contact.name);
   return db.query(`INSERT INTO contacts(name, email) VALUES ('${contact.name}','${contact.email}');`);
 
 }
 
-let deleteContact = (request, response, id) => {
-  let itemId = id[0];
+let deleteContact = (request, response) => {
+  let itemId = request.params.id;
   var deleteEntryPromise = db.query(`DELETE from contacts where id = ${itemId}`);
   deleteEntryPromise.then(results => {
     response.end('item deleted');
   })
 }
 
-let getContact = (request, response, id) => {
-  let itemId = id[0];
+let getContact = (request, response) => {
+  let itemId = request.params.id;
+  console.log(itemId);
   let requestedEntry = getRequestedEntry(itemId, request);
   requestedEntry.then(results => {
     console.log(results[0]);
-    response.end(JSON.stringify(results[0]));
+    response.send(JSON.stringify(results[0]));
 
   })
 }
@@ -54,37 +49,23 @@ let getContact = (request, response, id) => {
 let getContacts = (request, response) => {
   var getContactsPromise = db.query('SELECT * from contacts;');
   getContactsPromise.then(results => {
-    response.end(JSON.stringify(results));
+    response.send(JSON.stringify(results));
   })
 };
 
 let postContacts = (request, response) => {
-  let body = '';
-  request.on('data', (chunk) => {
-    body += chunk.toString();
-  });
-  request.on('end', () => {
-    let contact = JSON.parse(body);
-    var newContactPromise = addNewContact(contact);
-    newContactPromise.then(results => {response.end('Got it!')})
+    var newContactPromise = addNewContact(request.body);
+    newContactPromise.then(results => {response.send('Got it!')})
     .catch(results => {console.log(results)});
-  });
 }
 
-let putContact = (request, response, id) => {
-  console.log(id);
-  let body = '';
-  request.on('data', (chunk) => {
-    body += chunk.toString();
-  });
-  request.on('end', () => {
-    let newContentForContact = JSON.parse(body);
-    let itemId = id[0];
-    for (let key in newContentForContact) {
-      let editContactPromise = updateEntry(newContentForContact, itemId, key);
-      editContactPromise.then(results => {response.end('Got it!')});
+let putContact = (request, response) => {
+    let itemId = request.params.id;
+    console.log(request.body);
+    for (let key in request.body) {
+      let editContactPromise = updateEntry(request.body, itemId, key)
+      .then(results => {response.send('Got it!')});
     }
-  });
 }
 let renderFile = (request, response) => {
   var fileName = request.url.slice(1);
@@ -98,55 +79,11 @@ let renderFile = (request, response) => {
   })
 }
 
-let routes = [
-  {
-    method: 'GET',
-    path: /^\/contacts\/([0-9]+)/,
-    handler: getContact
-  },
-  {
-    method: 'GET',
-    path: /^\/contacts\/?$/,
-    handler: getContacts
-  },
-  {
-    method: 'POST',
-    path: /^\/contacts\/?$/,
-    handler: postContacts
-  },
-  {
-    method: 'DELETE',
-    path: /^\/contacts\/([0-9]+)/,
-    handler: deleteContact
-  },
-  {
-    method: 'PUT',
-    path: /^\/contacts\/([0-9]+)/,
-    handler: putContact
-  },
-  {
-    method: 'GET',
-    path: /^\/[0-9A-Za-z]+/,
-    handler: renderFile
-  }
-];
-
-let server = http.createServer((request, response) => {
-  let invalid = true;
-  for (let route of routes) {
-    var matched = matches(request, route.method, route.path)
-    if (matched) {
-      route.handler(request, response, matched);
-      invalid = false;
-      break;
-    }
-  }
-  // console.log(invalid);
-  if (invalid) {
-    response.statusCode = 404;
-    response.end('404')
-  }
-
-});
-
-server.listen(3000);
+app.get('/contacts/:id', getContact);
+app.get('/contacts', getContacts);
+app.use(bodyParser.json())
+app.post('/contacts', postContacts);
+app.delete('/contacts/:id', deleteContact);
+app.put('/contacts/:id', putContact);
+app.get('*', renderFile);
+app.listen(3000, () => console.log('Example app listening on port 3000!'))
